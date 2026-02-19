@@ -29,7 +29,7 @@ def get_ai_response(user_input: str):
         }
 
     except Exception as e:
-        logger.error(f"OpenAI error: {str(e)}")
+        logger.error(f"Error while getting AI response: {e}")
         return {
             "success": False,
             "error": "Failed to process AI request."

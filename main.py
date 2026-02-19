@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from services.openai_service import get_ai_response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 app = FastAPI()
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1)
 
 class ChatResponse(BaseModel):
     success: bool
