@@ -22,6 +22,7 @@ def read_root():
 def chat(request: ChatRequest):
     user_input = request.message
     ai_response = get_ai_response(user_input)
-    return {"response": ai_response}
+    print("AI Response:", ai_response)  # Debugging log
+    return ai_response
 
 
