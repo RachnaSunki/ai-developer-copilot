@@ -19,6 +19,8 @@ This project is being built as part of a transition into AI-focused backend engi
 - Uvicorn
 - OpenAI GPT-4o-mini
 - python-dotenv
+- Pydantic
+- Logging (built-in Python logging module)
 
 ---
 
@@ -29,7 +31,9 @@ ai-dev-copilot/
 │
 ├── main.py
 ├── services/
-│ └── openai_service.py
+│   └── openai_service.py
+├── models/
+│   └── schemas.py
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
@@ -43,10 +47,36 @@ Client → FastAPI → OpenAI Service → GPT-4o-mini → Response
 
 
 - `main.py` handles API routing.
+- `schemas.py` Request & response models (API contract).
 - `openai_service.py` handles LLM communication.
 - `.env` securely stores API keys.
 
 ---
+
+## 📦 API Contract
+
+### Request Model
+
+{
+  "message": "Explain React hooks"
+}
+
+### Response Model
+
+{
+  "success": true,
+  "data": "AI response here",
+  "error": null
+}
+
+```bash
+Validation Rules
+message must be a non-empty string
+Request validation errors → 422
+Response contract mismatch → 500
+OpenAI failures handled gracefully
+```
+
 
 ## ⚙️ Setup Instructions
 
@@ -82,30 +112,33 @@ http://127.0.0.1:8000/docs
 
 ```bash
 REST API design
-Route decorators (@app.get, @app.post)
+Route decorators
 Type hints
+Pydantic validation (input & output)
+Response model enforcement
 Service layer separation
+Structured error handling
+Logging for observability
 Environment-based configuration
-OpenAI API integration
-Automatic Swagger documentation
+Swagger (OpenAPI) auto documentation
 ```
 
-
-## 🚧 Current Status
+## ✅ Week 1 Status
 
 ```bash
 Backend AI integration complete
-Modular architecture implemented
-Frontend chat interface coming next
+Clean modular architecture
+Request & response validation
+Error handling implemented
+Logging added
+Fully tested with edge cases
 ```
 
 
 ## 📌 Future Improvements
 
 ```bash
-Implement Pydantic request validation
-Add streaming responses
-Connect React frontend
-Deploy to cloud
-Add logging & error handling improvements
+Build React (Vite) chat interface
+Connect frontend to backend
+Implement loading & error UI states
 ```
