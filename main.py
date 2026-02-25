@@ -2,8 +2,19 @@ from fastapi import FastAPI
 from services.openai_service import get_ai_response
 from pydantic import BaseModel, Field
 from typing import Optional
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
