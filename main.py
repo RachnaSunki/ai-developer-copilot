@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from services.openai_service import get_ai_response
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -16,8 +16,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class Message(BaseModel):
+    role: str
+    content: str
+
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1)
+    messages: List[Message]
 
 class ChatResponse(BaseModel):
     success: bool
@@ -31,8 +35,8 @@ def read_root():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    user_input = request.message
-    ai_response = get_ai_response(user_input)
+    conversation = request.messages
+    ai_response = get_ai_response(conversation)
     print("AI Response:", ai_response)  # Debugging log
     return ai_response
 

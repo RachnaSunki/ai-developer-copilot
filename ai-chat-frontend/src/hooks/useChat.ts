@@ -23,12 +23,14 @@ export function useChat() {
       content: input,
     };
 
+    const updatedHistory = [...messages, userMessage];
+
     const typingMessage: Message = {
       role: "assistant",
       content: "__typing__",
     };
 
-    setMessages((prev) => [...prev, userMessage, typingMessage]);
+    setMessages([...updatedHistory, typingMessage]);
 
     setInput("");
     setLoading(true);
@@ -36,7 +38,7 @@ export function useChat() {
 
     try {
       const response = await sendMessage({
-        message: userMessage.content,
+        messages: updatedHistory,
       });
 
       if (!response.success) {

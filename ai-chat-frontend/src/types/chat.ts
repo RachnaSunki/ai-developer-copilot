@@ -1,6 +1,5 @@
 export interface ChatRequest {
-  message: string;
-  //messages?: Message[]
+  messages: Message[];
 }
 
 export interface ChatResponse {
