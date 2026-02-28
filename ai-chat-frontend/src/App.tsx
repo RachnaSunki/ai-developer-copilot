@@ -1,6 +1,7 @@
 import ChatWindow from "./components/ChatWindow";
 import ChatInput from "./components/ChatInput";
 import { useChat } from "./hooks/useChat";
+import { SquarePen } from "lucide-react";
 
 function App() {
   const {
@@ -10,6 +11,7 @@ function App() {
     loading,
     error,
     handleSend,
+    clearChat,
   } = useChat();
 
   return (
@@ -38,17 +40,48 @@ function App() {
       >
         <div
           style={{
-            padding: "16px",
+            padding: "16px 20px",
             borderBottom: "1px solid #eee",
             fontWeight: "bold",
+            backgroundColor: "#fafafa",
             fontSize: "18px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          GenAI Assistant
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: "18px",
+            }}
+          >
+            GenAI Assistant
+          </div>
+
+          <button
+            onClick={clearChat}
+            disabled={loading}
+            title="New Chat"
+            style={{
+              border: "none",
+              backgroundColor: "transparent",   // remove blue
+              padding: "6px",
+              borderRadius: "8px",
+              cursor: loading ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: loading ? 0.6 : 1,
+              transition: "opacity 0.2s ease",
+            }}
+          >
+            <SquarePen size={20} color="#111827" />
+          </button>
         </div>
 
         <div style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
-          <ChatWindow messages={messages} />
+          <ChatWindow messages={messages} loading={loading} />
         </div>
 
         {error && (
@@ -57,7 +90,7 @@ function App() {
           </div>
         )}
 
-        <div style={{ padding: "16px", borderTop: "1px solid #eee" }}>
+        <div style={{ padding: "16px" }}>
           <ChatInput
             input={input}
             setInput={setInput}

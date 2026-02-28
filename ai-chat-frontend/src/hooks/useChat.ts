@@ -8,68 +8,100 @@ export function useChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoaded = useRef(false);
-
   const [messages, setMessages] = useState<Message[]>(() => {
+  const sessionActive = localStorage.getItem("chat_session_active");
+
+  if (!sessionActive) {
+    return [];
+  }
+
   const stored = localStorage.getItem("chat_messages");
-  console.log("Initializer stored:", stored);
-  return stored ? JSON.parse(stored) : [];
-});
+    return stored ? JSON.parse(stored) : [];
+  });
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
 
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-    };
+  const typeResponse = async (fullText: string) => {
+    let currentText = "";
 
-    const updatedHistory = [...messages, userMessage];
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "" },
+    ]);
 
-    const typingMessage: Message = {
-      role: "assistant",
-      content: "__typing__",
-    };
+    for (let i = 0; i < fullText.length; i++) {
+      currentText += fullText[i];
 
-    setMessages([...updatedHistory, typingMessage]);
+      await new Promise((resolve) => setTimeout(resolve, 20)); // speed
 
-    setInput("");
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await sendMessage({
-        messages: updatedHistory,
-      });
-
-      if (!response.success) {
-        throw new Error(response.error || "Unknown server error");
-      }
-
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: response.data,
-      };
-
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = assistantMessage;
-        return updated;
-      });
-    } catch (err: any) {
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: "assistant",
-          content: "Error: Failed to get response.",
+          content: currentText,
         };
         return updated;
       });
-
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
+
+  const handleSend = async () => {
+      if (!input.trim() || loading) return;
+
+      const userMessage: Message = {
+        role: "user",
+        content: input,
+      };
+
+      const updatedHistory = [...messages, userMessage];
+
+      // Add user message + empty assistant message
+      setMessages([...updatedHistory, { role: "assistant", content: "" }]);
+
+      localStorage.setItem("chat_session_active", "true");
+
+      setInput("");
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await sendMessage({
+          messages: updatedHistory,
+        });
+
+        if (!response.success) {
+          throw new Error(response.error || "Unknown server error");
+        }
+
+        // 🔥 Stop loading BEFORE typing
+        setLoading(false);
+
+        await typeResponse(response.data);
+
+      }catch (err: any) {
+        // Replace last assistant message with error
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: "Error: Failed to get response.",
+          };
+          return updated;
+        });
+
+        setError(err.message);
+      } finally {
+        // setLoading(false);
+      }
+    };
+
+  const clearChat = () => {
+    setMessages([]);
+    setInput("");
+    setError(null);
+    localStorage.removeItem("chat_messages");
+    localStorage.removeItem("chat_session_active");
+  };
+
 
   useEffect(() => {
     const stored = localStorage.getItem("chat_messages");
@@ -81,12 +113,10 @@ export function useChat() {
   }, []);
 
   useEffect(() => {
-    if (!hasLoaded.current) return;
-    console.log("Messages updated:", messages);
-
-    localStorage.setItem("chat_messages", JSON.stringify(messages));
-    }, [messages]);
-
+    if (messages.length > 0) {
+      localStorage.setItem("chat_messages", JSON.stringify(messages));
+    }
+  }, [messages]);
 
   return {
     messages,
@@ -95,5 +125,6 @@ export function useChat() {
     loading,
     error,
     handleSend,
+    clearChat,
   };
 }

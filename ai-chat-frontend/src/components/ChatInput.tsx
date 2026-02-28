@@ -1,3 +1,5 @@
+import { useRef, useEffect } from "react";
+
 interface Props {
   input: string;
   setInput: (value: string) => void;
@@ -6,53 +8,79 @@ interface Props {
 }
 
 function ChatInput({ input, setInput, onSend, loading }: Props) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+  }, [input]);
+
   return (
     <div
       style={{
         display: "flex",
-        gap: "10px",
-        alignItems: "center",
+        alignItems: "flex-end",
+        gap: "12px",
       }}
     >
-      <input
-        type="text"
-        value={input}
-        placeholder="Type your message..."
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !loading) {
-            onSend();
-          }
-        }}
-        disabled={loading}
+      <div
         style={{
           flex: 1,
-          padding: "12px 14px",
-          borderRadius: "10px",
-          border: "none",
-          outline: "none",
-          backgroundColor: "#f1f3f5",
-          fontSize: "14px",
+          backgroundColor: "#f3f4f6",
+          borderRadius: "14px",
+          padding: "10px 20px",
+          display: "flex",
+          alignItems: "center",
         }}
-      />
+      >
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault(); // prevent new line
+              if (!loading && input.trim()) {
+                onSend();
+              }
+            }
+          }}
+          placeholder="Type your message..."
+          rows={1}
+          style={{
+            width: "100%",
+            resize: "none",
+            border: "none",
+            outline: "none",
+            fontSize: "14px",
+            backgroundColor: "transparent",
+            maxHeight: "120px",
+            overflowY: "auto",
+          }}
+        />
+      </div>
 
       <button
         onClick={onSend}
         disabled={loading}
         style={{
-          padding: "12px 18px",
-          borderRadius: "10px",
-          border: "none",
-          cursor: loading ? "not-allowed" : "pointer",
-          backgroundColor: loading ? "#94a3b8" : "#2563eb",
+          backgroundColor: "#2563eb",
           color: "white",
-          fontWeight: 500,
+          border: "none",
+          borderRadius: "14px",
+          padding: "14px 20px",
           fontSize: "14px",
-          opacity: loading ? 0.7 : 1,
-          transition: "all 0.2s ease",
+          cursor: loading ? "not-allowed" : "pointer",
+          opacity: loading ? 0.6 : 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {loading ? "Sending..." : "Send"}
+        Send
       </button>
     </div>
   );
