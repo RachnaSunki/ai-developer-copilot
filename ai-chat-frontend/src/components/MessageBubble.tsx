@@ -49,13 +49,13 @@ function MessageBubble({ message }: Props) {
     >
       <div
         style={{
-          backgroundColor: isUser ? "#2563eb" : "#f1f3f5",
-          color: isUser ? "white" : "black",
-          padding: "8px 14px",
-          borderRadius: "14px",
+          backgroundColor: isUser ? "#2563eb" : "transparent",
+          color: isUser ? "white" : "#111827",
+          padding: isUser ? "8px 14px" : "0px",
+          borderRadius: "16px",
           maxWidth: "75%",
           position: "relative",
-          lineHeight: "1.4",
+          lineHeight: "1.6",
         }}
       >
         <div className="markdown-content">

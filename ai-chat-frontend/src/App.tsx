@@ -9,6 +9,7 @@ function App() {
     input,
     setInput,
     loading,
+    isTyping,
     error,
     handleSend,
     clearChat,
@@ -61,18 +62,18 @@ function App() {
 
           <button
             onClick={clearChat}
-            disabled={loading}
+            disabled={loading || isTyping}
             title="New Chat"
             style={{
               border: "none",
               backgroundColor: "transparent",   // remove blue
               padding: "6px",
               borderRadius: "8px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || isTyping ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: loading ? 0.6 : 1,
+              opacity: loading || isTyping ? 0.6 : 1,
               transition: "opacity 0.2s ease",
             }}
           >
@@ -84,18 +85,12 @@ function App() {
           <ChatWindow messages={messages} loading={loading} />
         </div>
 
-        {error && (
-          <div style={{ color: "red", padding: "0 16px 8px 16px" }}>
-            {error}
-          </div>
-        )}
-
         <div style={{ padding: "16px" }}>
           <ChatInput
             input={input}
             setInput={setInput}
             onSend={handleSend}
-            loading={loading}
+            loading={loading || isTyping || !input.trim()}
           />
         </div>
       </div>

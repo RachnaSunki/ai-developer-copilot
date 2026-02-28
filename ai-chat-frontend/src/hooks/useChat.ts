@@ -6,10 +6,12 @@ export function useChat() {
   // const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoaded = useRef(false);
   const [messages, setMessages] = useState<Message[]>(() => {
   const sessionActive = localStorage.getItem("chat_session_active");
+  
 
   if (!sessionActive) {
     return [];
@@ -56,9 +58,6 @@ export function useChat() {
 
       // Add user message + empty assistant message
       setMessages([...updatedHistory, { role: "assistant", content: "" }]);
-
-      localStorage.setItem("chat_session_active", "true");
-
       setInput("");
       setLoading(true);
       setError(null);
@@ -72,10 +71,27 @@ export function useChat() {
           throw new Error(response.error || "Unknown server error");
         }
 
-        // 🔥 Stop loading BEFORE typing
-        setLoading(false);
+        // 🔥 1. Build FULL assistant message
+        const fullAssistantMessage: Message = {
+          role: "assistant",
+          content: response.data,
+        };
 
+        const finalMessages = [...updatedHistory, fullAssistantMessage];
+
+        // 🔥 2. Save full conversation immediately
+        localStorage.setItem("chat_messages", JSON.stringify(finalMessages));
+
+        // 🔥 3. Set state with EMPTY assistant first (for typing)
+        setMessages([...updatedHistory, { role: "assistant", content: "" }]);
+
+        setLoading(false);
+        setIsTyping(true);
+
+        // 🔥 4. Animate typing using response.data
         await typeResponse(response.data);
+
+        setIsTyping(false);
 
       }catch (err: any) {
         // Replace last assistant message with error
@@ -83,14 +99,14 @@ export function useChat() {
           const updated = [...prev];
           updated[updated.length - 1] = {
             role: "assistant",
-            content: "Error: Failed to get response.",
+            content: "Sorry, I couldn’t reach the server. Please try again.",
           };
           return updated;
         });
 
-        setError(err.message);
+        // setError(err.message);
       } finally {
-        // setLoading(false);
+        setLoading(false);
       }
     };
 
@@ -102,6 +118,16 @@ export function useChat() {
     localStorage.removeItem("chat_session_active");
   };
 
+// useEffect(() => {
+//   if (!loading && !isTyping && messages.length > 0) {
+//     const lastMessage = messages[messages.length - 1];
+
+//     // Only persist when last message is assistant and fully typed
+//     if (lastMessage.role === "assistant") {
+//       localStorage.setItem("chat_messages", JSON.stringify(messages));
+//     }
+//   }
+// }, [messages, loading, isTyping]);
 
   useEffect(() => {
     const stored = localStorage.getItem("chat_messages");
@@ -112,17 +138,12 @@ export function useChat() {
     hasLoaded.current = true;
   }, []);
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem("chat_messages", JSON.stringify(messages));
-    }
-  }, [messages]);
-
   return {
     messages,
     input,
     setInput,
     loading,
+    isTyping,
     error,
     handleSend,
     clearChat,
