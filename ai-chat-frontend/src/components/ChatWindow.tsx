@@ -13,14 +13,28 @@ function ChatWindow({ messages, loading }: Props) {
   const [showEmpty, setShowEmpty] = useState(messages.length === 0);
 
   useEffect(() => {
-  if (messages.length > 0) {
-    setTimeout(() => {
-      setShowEmpty(false);
-    }, 300); // matches animation duration
-  } else {
-    setShowEmpty(true);
+    // 🔹 Empty state logic (unchanged behavior)
+    if (messages.length > 0) {
+      setTimeout(() => {
+        setShowEmpty(false);
+      }, 300);
+    } else {
+      setShowEmpty(true);
   }
-  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+
+  // 🔹 Smart auto-scroll (NEW FIX)
+  const container = bottomRef.current?.parentElement;
+  if (!container) return;
+
+  const distanceFromBottom =
+    container.scrollHeight - container.scrollTop - container.clientHeight;
+
+  const isNearBottom = distanceFromBottom < 100;
+
+  if (isNearBottom) {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
+
 }, [messages]);
 
   return (
@@ -75,10 +89,16 @@ function ChatWindow({ messages, loading }: Props) {
 
             {/* Loading bubble */}
             {loading && (
-              <MessageBubble
-                message={{ role: "assistant", content: "__loading__" }}
-              />
-            )}
+            <MessageBubble
+              message={{
+                id: "loading",
+                role: "assistant",
+                content: "__loading__",
+                createdAt: Date.now(),
+                status: "streaming",
+              }}
+            />
+          )}
 
             <div ref={bottomRef} />
           </>

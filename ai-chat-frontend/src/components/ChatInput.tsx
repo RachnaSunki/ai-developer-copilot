@@ -1,13 +1,16 @@
 import { useRef, useEffect } from "react";
+import { Square, Send } from "lucide-react";
 
 interface Props {
   input: string;
   setInput: (value: string) => void;
   onSend: () => void;
   loading: boolean;
+  isTyping: boolean;
+  onStop: () => void;
 }
 
-function ChatInput({ input, setInput, onSend, loading }: Props) {
+function ChatInput({ input, setInput, onSend, loading, isTyping, onStop }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -62,26 +65,58 @@ function ChatInput({ input, setInput, onSend, loading }: Props) {
           }}
         />
       </div>
-
-      <button
-        onClick={onSend}
-        disabled={loading}
-        style={{
-          backgroundColor: "#2563eb",
-          color: "white",
-          border: "none",
-          borderRadius: "14px",
-          padding: "14px 20px",
-          fontSize: "14px",
-          cursor: loading ? "not-allowed" : "pointer",
-          opacity: loading ? 0.6 : 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        Send
-      </button>
+      {(loading || isTyping) ? (
+        <button
+          onClick={onStop}
+          style={{
+            backgroundColor: "#111827",
+            border: "none",
+            borderRadius: "14px",
+            padding: "14px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s ease",
+          }}
+          // onMouseEnter={(e) =>
+          //   (e.currentTarget.style.backgroundColor = "#1f2937")
+          // }
+          // onMouseLeave={(e) =>
+          //   (e.currentTarget.style.backgroundColor = "#111827")
+          // }
+        >
+          <Square size={16} color="white" strokeWidth={2.5} />
+        </button>
+        ) : (
+          <button
+            onClick={onSend}
+            disabled={loading || isTyping || !input.trim()}
+            onMouseEnter={(e) => {
+              if (!loading && input.trim())
+                e.currentTarget.style.backgroundColor = "#1d4ed8";
+            }}
+            onMouseLeave={(e) => {
+              if (!loading && input.trim())
+                e.currentTarget.style.backgroundColor = "#2563eb";
+            }}
+            style={{
+              backgroundColor: "#2563eb",
+              color: "white",
+              border: "none",
+              borderRadius: "14px",
+              padding: "14px",
+              cursor: loading || isTyping || !input.trim() ? "not-allowed" : "pointer",
+              opacity: loading || isTyping || !input.trim() ? 0.6 : 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s ease", 
+            }}
+          >
+            <Send size={18} />
+          </button>
+        )}
     </div>
   );
 }

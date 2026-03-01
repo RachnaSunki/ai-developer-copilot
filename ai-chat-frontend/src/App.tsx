@@ -10,8 +10,8 @@ function App() {
     setInput,
     loading,
     isTyping,
-    error,
     handleSend,
+    handleStop,
     clearChat,
   } = useChat();
 
@@ -90,7 +90,9 @@ function App() {
             input={input}
             setInput={setInput}
             onSend={handleSend}
-            loading={loading || isTyping || !input.trim()}
+            loading={loading}
+            isTyping={isTyping}
+            onStop={handleStop}
           />
         </div>
       </div>

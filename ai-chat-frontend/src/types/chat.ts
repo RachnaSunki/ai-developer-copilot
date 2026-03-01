@@ -8,7 +8,12 @@ export interface ChatResponse {
   error: string | null;
 }
 
+export type MessageStatus = "streaming" | "complete" | "error";
+
 export interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
+  createdAt: number;
+  status: MessageStatus;
 }

@@ -9,9 +9,9 @@ export function useChat() {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoaded = useRef(false);
+  const typingControllerRef = useRef<{ stop: boolean }>({ stop: false });
   const [messages, setMessages] = useState<Message[]>(() => {
   const sessionActive = localStorage.getItem("chat_session_active");
-  
 
   if (!sessionActive) {
     return [];
@@ -21,94 +21,120 @@ export function useChat() {
     return stored ? JSON.parse(stored) : [];
   });
 
-
   const typeResponse = async (fullText: string) => {
-    let currentText = "";
+    const messageId = crypto.randomUUID();
+
+    typingControllerRef.current.stop = false;
 
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", content: "" },
+      {
+        id: messageId,
+        role: "assistant",
+        content: "",
+        createdAt: Date.now(),
+        status: "streaming",
+      },
     ]);
 
+    let currentText = "";
+
     for (let i = 0; i < fullText.length; i++) {
+      if (typingControllerRef.current.stop) break;
+
       currentText += fullText[i];
 
-      await new Promise((resolve) => setTimeout(resolve, 20)); // speed
+      await new Promise((resolve) => setTimeout(resolve, 20));
 
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: currentText,
-        };
-        return updated;
-      });
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: currentText }
+            : msg
+        )
+      );
     }
+
+    // mark as complete when stopped OR finished
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? { ...msg, status: "complete" }
+          : msg
+      )
+    );
+  };
+
+  const handleStop = () => {
+    typingControllerRef.current.stop = true;
+    setIsTyping(false);
   };
 
   const handleSend = async () => {
-      if (!input.trim() || loading) return;
+    if (!input.trim() || loading) return;
+    
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: input,
+      createdAt: Date.now(),
+      status: "complete",
+    };
 
-      const userMessage: Message = {
-        role: "user",
-        content: input,
+    const updatedHistory = [...messages, userMessage];
+    setIsTyping(true); 
+
+    // Only add user message
+    setMessages(updatedHistory);
+
+    setInput("");
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await sendMessage({
+        messages: updatedHistory,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || "Unknown server error");
+      }
+
+      // Save full conversation immediately
+      const fullAssistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: response.data,
+        createdAt: Date.now(),
+        status: "complete",
       };
 
-      const updatedHistory = [...messages, userMessage];
+      const finalMessages = [...updatedHistory, fullAssistantMessage];
+      localStorage.setItem("chat_messages", JSON.stringify(finalMessages));
 
-      // Add user message + empty assistant message
-      setMessages([...updatedHistory, { role: "assistant", content: "" }]);
-      setInput("");
-      setLoading(true);
-      setError(null);
+      setLoading(false);
+      setIsTyping(true);
 
-      try {
-        const response = await sendMessage({
-          messages: updatedHistory,
-        });
+      // Only animate via typeResponse
+      await typeResponse(response.data);
 
-        if (!response.success) {
-          throw new Error(response.error || "Unknown server error");
-        }
+      setIsTyping(false);
 
-        // 🔥 1. Build FULL assistant message
-        const fullAssistantMessage: Message = {
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
           role: "assistant",
-          content: response.data,
-        };
-
-        const finalMessages = [...updatedHistory, fullAssistantMessage];
-
-        // 🔥 2. Save full conversation immediately
-        localStorage.setItem("chat_messages", JSON.stringify(finalMessages));
-
-        // 🔥 3. Set state with EMPTY assistant first (for typing)
-        setMessages([...updatedHistory, { role: "assistant", content: "" }]);
-
-        setLoading(false);
-        setIsTyping(true);
-
-        // 🔥 4. Animate typing using response.data
-        await typeResponse(response.data);
-
-        setIsTyping(false);
-
-      }catch (err: any) {
-        // Replace last assistant message with error
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: "Sorry, I couldn’t reach the server. Please try again.",
-          };
-          return updated;
-        });
-
-        // setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+          content: "Sorry, I couldn’t reach the server. Please try again.",
+          createdAt: Date.now(),
+          status: "error",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const clearChat = () => {
     setMessages([]);
@@ -131,7 +157,6 @@ export function useChat() {
 
   useEffect(() => {
     const stored = localStorage.getItem("chat_messages");
-    console.log("Stored messages:", stored);
     if (stored) {
         setMessages(JSON.parse(stored));
     }
@@ -146,6 +171,7 @@ export function useChat() {
     isTyping,
     error,
     handleSend,
+    handleStop,
     clearChat,
   };
 }
