@@ -10,6 +10,13 @@ export interface ChatResponse {
 
 export type MessageStatus = "streaming" | "complete" | "error";
 
+export type Session = {
+  id: string;
+  title: string;
+  createdAt: number;
+  messages: Message[];
+};
+
 export interface Message {
   id: string;
   role: "user" | "assistant";

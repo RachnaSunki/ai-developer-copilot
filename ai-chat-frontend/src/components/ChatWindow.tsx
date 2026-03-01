@@ -11,6 +11,7 @@ interface Props {
 function ChatWindow({ messages, loading }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [showEmpty, setShowEmpty] = useState(messages.length === 0);
+  const prevLengthRef = useRef(messages.length);
 
   useEffect(() => {
     // 🔹 Empty state logic (unchanged behavior)
@@ -21,21 +22,13 @@ function ChatWindow({ messages, loading }: Props) {
     } else {
       setShowEmpty(true);
   }
+   // 🔹 Auto-scroll ONLY if new message added
+    if (messages.length > prevLengthRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
 
-  // 🔹 Smart auto-scroll (NEW FIX)
-  const container = bottomRef.current?.parentElement;
-  if (!container) return;
-
-  const distanceFromBottom =
-    container.scrollHeight - container.scrollTop - container.clientHeight;
-
-  const isNearBottom = distanceFromBottom < 100;
-
-  if (isNearBottom) {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
-
-}, [messages]);
+    prevLengthRef.current = messages.length;
+  }, [messages]);
 
   return (
   <div style={{ height: "100%", position: "relative" }}>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { sendMessage } from "../services/api";
-import type { Message } from "../types/chat";
+import type { Message, Session } from "../types/chat";
 
 export function useChat() {
   // const [messages, setMessages] = useState<Message[]>([]);
@@ -8,34 +8,66 @@ export function useChat() {
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hasLoaded = useRef(false);
   const typingControllerRef = useRef<{ stop: boolean }>({ stop: false });
-  const [messages, setMessages] = useState<Message[]>(() => {
-  const sessionActive = localStorage.getItem("chat_session_active");
-
-  if (!sessionActive) {
-    return [];
-  }
-
-  const stored = localStorage.getItem("chat_messages");
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    const stored = localStorage.getItem("chat_sessions");
     return stored ? JSON.parse(stored) : [];
   });
 
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
+    return localStorage.getItem("active_session_id");
+  });
+
+  const activeSession = sessions.find(
+    (s) => s.id === activeSessionId
+  );
+
+  const messages = activeSession?.messages ?? [];
+  console.log("sessions:", sessions);
+console.log("activeSessionId:", activeSessionId);
+
+  const createNewSession = () => {
+    const newSession: Session = {
+      id: crypto.randomUUID(),
+      title: "New Chat",
+      createdAt: Date.now(),
+      messages: [],
+    };
+
+    setSessions((prev) => [newSession, ...prev]);
+    setActiveSessionId(newSession.id);
+  };
+
+  useEffect(() => {
+    if (sessions.length === 0) {
+      createNewSession();
+    }
+  }, []);
+
   const typeResponse = async (fullText: string) => {
     const messageId = crypto.randomUUID();
-
     typingControllerRef.current.stop = false;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: messageId,
-        role: "assistant",
-        content: "",
-        createdAt: Date.now(),
-        status: "streaming",
-      },
-    ]);
+    // 1️⃣ First insert empty streaming message
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === activeSessionId
+          ? {
+              ...session,
+              messages: [
+                ...session.messages,
+                {
+                  id: messageId,
+                  role: "assistant",
+                  content: "",
+                  createdAt: Date.now(),
+                  status: "streaming",
+                },
+              ],
+            }
+          : session
+      )
+    );
 
     let currentText = "";
 
@@ -46,21 +78,35 @@ export function useChat() {
 
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, content: currentText }
-            : msg
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === activeSessionId
+            ? {
+                ...session,
+                messages: session.messages.map((msg) =>
+                  msg.id === messageId
+                    ? { ...msg, content: currentText }
+                    : msg
+                ),
+              }
+            : session
         )
       );
     }
 
-    // mark as complete when stopped OR finished
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId
-          ? { ...msg, status: "complete" }
-          : msg
+    // 2️⃣ Mark as complete
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === activeSessionId
+          ? {
+              ...session,
+              messages: session.messages.map((msg) =>
+                msg.id === messageId
+                  ? { ...msg, status: "complete" }
+                  : msg
+              ),
+            }
+          : session
       )
     );
   };
@@ -85,7 +131,21 @@ export function useChat() {
     setIsTyping(true); 
 
     // Only add user message
-    setMessages(updatedHistory);
+    setSessions((prev) =>
+      prev.map((session) => {
+        if (session.id !== activeSessionId) return session;
+
+        const isFirstMessage = session.messages.length === 0;
+
+        return {
+          ...session,
+          title: isFirstMessage
+            ? input.slice(0, 40)   // trim to 40 chars
+            : session.title,
+          messages: updatedHistory,
+        };
+      })
+    );
 
     setInput("");
     setLoading(true);
@@ -109,8 +169,8 @@ export function useChat() {
         status: "complete",
       };
 
-      const finalMessages = [...updatedHistory, fullAssistantMessage];
-      localStorage.setItem("chat_messages", JSON.stringify(finalMessages));
+      // const finalMessages = [...updatedHistory, fullAssistantMessage];
+      // localStorage.setItem("chat_messages", JSON.stringify(finalMessages));
 
       setLoading(false);
       setIsTyping(true);
@@ -121,49 +181,57 @@ export function useChat() {
       setIsTyping(false);
 
     } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, I couldn’t reach the server. Please try again.",
-          createdAt: Date.now(),
-          status: "error",
-        },
-      ]);
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === activeSessionId
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content:
+                      "Sorry, I couldn’t reach the server. Please try again.",
+                    createdAt: Date.now(),
+                    status: "error",
+                  },
+                ],
+              }
+            : session
+        )
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const clearChat = () => {
-    setMessages([]);
+    createNewSession();
     setInput("");
     setError(null);
-    localStorage.removeItem("chat_messages");
-    localStorage.removeItem("chat_session_active");
   };
 
-// useEffect(() => {
-//   if (!loading && !isTyping && messages.length > 0) {
-//     const lastMessage = messages[messages.length - 1];
-
-//     // Only persist when last message is assistant and fully typed
-//     if (lastMessage.role === "assistant") {
-//       localStorage.setItem("chat_messages", JSON.stringify(messages));
-//     }
-//   }
-// }, [messages, loading, isTyping]);
-
   useEffect(() => {
-    const stored = localStorage.getItem("chat_messages");
-    if (stored) {
-        setMessages(JSON.parse(stored));
+    localStorage.setItem(
+      "chat_sessions",
+      JSON.stringify(sessions)
+    );
+
+    if (activeSessionId) {
+      localStorage.setItem(
+        "active_session_id",
+        activeSessionId
+      );
     }
-    hasLoaded.current = true;
-  }, []);
+  }, [sessions, activeSessionId]);
+
 
   return {
+    sessions,
+    activeSessionId,
+    setActiveSessionId,
+    createNewSession,
     messages,
     input,
     setInput,

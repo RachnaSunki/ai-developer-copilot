@@ -69,7 +69,7 @@ function ChatInput({ input, setInput, onSend, loading, isTyping, onStop }: Props
         <button
           onClick={onStop}
           style={{
-            backgroundColor: "#111827",
+            backgroundColor: "#eaedf3",
             border: "none",
             borderRadius: "14px",
             padding: "14px",
@@ -86,7 +86,12 @@ function ChatInput({ input, setInput, onSend, loading, isTyping, onStop }: Props
           //   (e.currentTarget.style.backgroundColor = "#111827")
           // }
         >
-          <Square size={16} color="white" strokeWidth={2.5} />
+          <Square
+            size={16}
+            color="black"
+            fill="black"
+            strokeWidth={0}
+          />
         </button>
         ) : (
           <button
