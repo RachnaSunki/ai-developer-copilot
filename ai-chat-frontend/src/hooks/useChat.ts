@@ -1,14 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { sendMessage } from "../services/api";
+import { useState, useEffect } from "react";
+import { sendMessageStream } from "../services/api";
 import type { Message, Session } from "../types/chat";
 
 export function useChat() {
-  // const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const typingControllerRef = useRef<{ stop: boolean }>({ stop: false });
+
   const [sessions, setSessions] = useState<Session[]>(() => {
     const stored = localStorage.getItem("chat_sessions");
     return stored ? JSON.parse(stored) : [];
@@ -24,6 +23,7 @@ export function useChat() {
 
   const messages = activeSession?.messages ?? [];
 
+  // ✅ Create new session
   const createNewSession = () => {
     const newSession: Session = {
       id: crypto.randomUUID(),
@@ -36,81 +36,10 @@ export function useChat() {
     setActiveSessionId(newSession.id);
   };
 
-  const typeResponse = async (fullText: string) => {
-    const messageId = crypto.randomUUID();
-    typingControllerRef.current.stop = false;
-
-    // 1️⃣ First insert empty streaming message
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === activeSessionId
-          ? {
-              ...session,
-              messages: [
-                ...session.messages,
-                {
-                  id: messageId,
-                  role: "assistant",
-                  content: "",
-                  createdAt: Date.now(),
-                  status: "streaming",
-                },
-              ],
-            }
-          : session
-      )
-    );
-
-    let currentText = "";
-
-    for (let i = 0; i < fullText.length; i++) {
-      if (typingControllerRef.current.stop) break;
-
-      currentText += fullText[i];
-
-      await new Promise((resolve) => setTimeout(resolve, 20));
-
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === activeSessionId
-            ? {
-                ...session,
-                messages: session.messages.map((msg) =>
-                  msg.id === messageId
-                    ? { ...msg, content: currentText }
-                    : msg
-                ),
-              }
-            : session
-        )
-      );
-    }
-
-    // 2️⃣ Mark as complete
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === activeSessionId
-          ? {
-              ...session,
-              messages: session.messages.map((msg) =>
-                msg.id === messageId
-                  ? { ...msg, status: "complete" }
-                  : msg
-              ),
-            }
-          : session
-      )
-    );
-  };
-
-  const handleStop = () => {
-    typingControllerRef.current.stop = true;
-    setIsTyping(false);
-  };
-
+  // ✅ Send message with real streaming
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    
+    if (!input.trim() || loading || isTyping || !activeSessionId) return;
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -119,85 +48,113 @@ export function useChat() {
       status: "complete",
     };
 
-    // const updatedHistory = [...messages, userMessage];
-    setIsTyping(true); 
+    const assistantId = crypto.randomUUID();
 
-    // Only add user message
+    setIsTyping(true);
+    setLoading(true);
+    setError(null);
+
+    // ✅ Add user + assistant placeholder
     setSessions((prev) =>
       prev.map((session) => {
         if (session.id !== activeSessionId) return session;
 
         const isFirstMessage = session.messages.length === 0;
 
-        const updatedMessages = [...session.messages, userMessage];
-
         return {
           ...session,
           title: isFirstMessage
             ? input.trim().slice(0, 40)
             : session.title,
-          messages: updatedMessages,
+          messages: [
+            ...session.messages,
+            userMessage,
+            {
+              id: assistantId,
+              role: "assistant",
+              content: "",
+              createdAt: Date.now(),
+              status: "streaming",
+            },
+          ],
         };
       })
     );
 
+    const currentInput = input;
     setInput("");
-    setLoading(true);
-    setError(null);
 
     try {
-      const response = await sendMessage({
-        messages: [...messages, userMessage],
-      });
+      await sendMessageStream(
+        { messages: [...messages, userMessage] },
+        (chunk: string) => {
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === activeSessionId
+                ? {
+                    ...session,
+                    messages: session.messages.map((msg) =>
+                      msg.id === assistantId
+                        ? {
+                            ...msg,
+                            content: msg.content + chunk,
+                          }
+                        : msg
+                    ),
+                  }
+                : session
+            )
+          );
+        }
+      );
 
-      if (!response.success) {
-        throw new Error(response.error || "Unknown server error");
-      }
-
-      // Save full conversation immediately
-      const fullAssistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response.data,
-        createdAt: Date.now(),
-        status: "complete",
-      };
-
-      // const finalMessages = [...updatedHistory, fullAssistantMessage];
-      // localStorage.setItem("chat_messages", JSON.stringify(finalMessages));
-
-      setLoading(false);
-      setIsTyping(true);
-
-      // Only animate via typeResponse
-      await typeResponse(response.data);
-
-      setIsTyping(false);
-
-    } catch (err: any) {
+      // ✅ Mark complete
       setSessions((prev) =>
         prev.map((session) =>
           session.id === activeSessionId
             ? {
                 ...session,
-                messages: [
-                  ...session.messages,
-                  {
-                    id: crypto.randomUUID(),
-                    role: "assistant",
-                    content:
-                      "Sorry, I couldn’t reach the server. Please try again.",
-                    createdAt: Date.now(),
-                    status: "error",
-                  },
-                ],
+                messages: session.messages.map((msg) =>
+                  msg.id === assistantId
+                    ? { ...msg, status: "complete" }
+                    : msg
+                ),
+              }
+            : session
+        )
+      );
+
+    } catch (err) {
+      console.error(err);
+
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === activeSessionId
+            ? {
+                ...session,
+                messages: session.messages.map((msg) =>
+                  msg.id === assistantId
+                    ? {
+                        ...msg,
+                        content:
+                          "Sorry, I couldn’t reach the server. Please try again.",
+                        status: "error",
+                      }
+                    : msg
+                ),
               }
             : session
         )
       );
     } finally {
       setLoading(false);
+      setIsTyping(false);
     }
+  };
+
+  // ❌ Stop not needed for now (stream abort not implemented yet)
+  const handleStop = () => {
+    // future: abort controller
   };
 
   const clearChat = () => {
@@ -206,6 +163,7 @@ export function useChat() {
     setError(null);
   };
 
+  // ✅ Persist sessions
   useEffect(() => {
     localStorage.setItem(
       "chat_sessions",
@@ -220,9 +178,12 @@ export function useChat() {
     }
   }, [sessions, activeSessionId]);
 
+  // ✅ Ensure active session is valid
   useEffect(() => {
     if (sessions.length > 0) {
-      const exists = sessions.some(s => s.id === activeSessionId);
+      const exists = sessions.some(
+        (s) => s.id === activeSessionId
+      );
 
       if (!activeSessionId || !exists) {
         setActiveSessionId(sessions[0].id);
@@ -230,13 +191,12 @@ export function useChat() {
     }
   }, [sessions, activeSessionId]);
 
-
+  // ✅ Initialize first session
   useEffect(() => {
     if (sessions.length === 0) {
       createNewSession();
     }
   }, []);
-
 
   return {
     sessions,

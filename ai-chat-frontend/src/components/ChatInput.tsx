@@ -98,11 +98,11 @@ function ChatInput({ input, setInput, onSend, loading, isTyping, onStop }: Props
             onClick={onSend}
             disabled={loading || isTyping || !input.trim()}
             onMouseEnter={(e) => {
-              if (!loading && input.trim())
+              if (!loading && !isTyping && input.trim())
                 e.currentTarget.style.backgroundColor = "#1d4ed8";
             }}
             onMouseLeave={(e) => {
-              if (!loading && input.trim())
+              if (!loading && !isTyping && input.trim())
                 e.currentTarget.style.backgroundColor = "#2563eb";
             }}
             style={{
