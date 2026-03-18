@@ -6,9 +6,11 @@ import { Copy, Check } from "lucide-react";
 
 interface Props {
   message: Message;
+  isLast?: boolean;
+  onRegenerate?: () => void;
 }
 
-function MessageBubble({ message }: Props) {
+function MessageBubble({ message, isLast, onRegenerate }: Props) {
   if (message.content === "__loading__") {
     return (
       <div
@@ -81,7 +83,32 @@ function MessageBubble({ message }: Props) {
           </ReactMarkdown>
         </div>
       </div>
+      <div style={{ marginTop: "6px",position: "absolute"}}>
+        {message.role === "assistant" && isLast && message.status === "complete" && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              onClick={onRegenerate}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px",
+                borderRadius: "6px",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              ↻
+            </button>
+          </div>
+        )}
     </div>
+  </div>
   );
 }
 

@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { sendMessageStream } from "../services/api";
 import type { Message, Session } from "../types/chat";
+import { useRef } from "react";
 
 export function useChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [sessions, setSessions] = useState<Session[]>(() => {
     const stored = localStorage.getItem("chat_sessions");
@@ -50,6 +52,10 @@ export function useChat() {
 
     const assistantId = crypto.randomUUID();
 
+    // 🔥 Create AbortController
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsTyping(true);
     setLoading(true);
     setError(null);
@@ -81,7 +87,6 @@ export function useChat() {
       })
     );
 
-    const currentInput = input;
     setInput("");
 
     try {
@@ -105,7 +110,8 @@ export function useChat() {
                 : session
             )
           );
-        }
+        },
+        controller.signal // 🔥 pass signal
       );
 
       // ✅ Mark complete
@@ -124,37 +130,64 @@ export function useChat() {
         )
       );
 
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        console.log("Stream aborted");
 
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === activeSessionId
-            ? {
-                ...session,
-                messages: session.messages.map((msg) =>
-                  msg.id === assistantId
-                    ? {
-                        ...msg,
-                        content:
-                          "Sorry, I couldn’t reach the server. Please try again.",
-                        status: "error",
-                      }
-                    : msg
-                ),
-              }
-            : session
-        )
-      );
+        // ✅ Mark partial response as complete
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === activeSessionId
+              ? {
+                  ...session,
+                  messages: session.messages.map((msg) =>
+                    msg.id === assistantId
+                      ? { ...msg, status: "complete" }
+                      : msg
+                  ),
+                }
+              : session
+          )
+        );
+
+      } else {
+        console.error(err);
+
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === activeSessionId
+              ? {
+                  ...session,
+                  messages: session.messages.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...msg,
+                          content:
+                            "Sorry, I couldn’t reach the server. Please try again.",
+                          status: "error",
+                        }
+                      : msg
+                  ),
+                }
+              : session
+          )
+        );
+      }
     } finally {
       setLoading(false);
       setIsTyping(false);
+      abortControllerRef.current = null; // cleanup
     }
   };
 
   // ❌ Stop not needed for now (stream abort not implemented yet)
   const handleStop = () => {
-    // future: abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    setIsTyping(false);
+    setLoading(false);
   };
 
   const clearChat = () => {
@@ -162,6 +195,98 @@ export function useChat() {
     setInput("");
     setError(null);
   };
+
+  const handleRegenerate = async () => {
+  if (!activeSessionId || loading || isTyping) return;
+
+  const session = sessions.find((s) => s.id === activeSessionId);
+  if (!session || session.messages.length < 2) return;
+
+  const lastMessage = session.messages[session.messages.length - 1];
+
+  // ensure last message is assistant
+  if (lastMessage.role !== "assistant") return;
+
+  // remove last assistant message
+  const updatedMessages = session.messages.slice(0, -1);
+
+  const assistantId = crypto.randomUUID();
+
+  setIsTyping(true);
+  setLoading(true);
+
+  // replace last assistant with new streaming placeholder
+  setSessions((prev) =>
+    prev.map((s) =>
+      s.id === activeSessionId
+        ? {
+            ...s,
+            messages: [
+              ...updatedMessages,
+              {
+                id: assistantId,
+                role: "assistant",
+                content: "",
+                createdAt: Date.now(),
+                status: "streaming",
+              },
+            ],
+          }
+        : s
+    )
+  );
+
+  const controller = new AbortController();
+  abortControllerRef.current = controller;
+
+  try {
+    await sendMessageStream(
+      { messages: updatedMessages },
+      (chunk: string) => {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === activeSessionId
+              ? {
+                  ...s,
+                  messages: s.messages.map((msg) =>
+                    msg.id === assistantId
+                      ? { ...msg, content: msg.content + chunk }
+                      : msg
+                  ),
+                }
+              : s
+          )
+        );
+      },
+      controller.signal
+    );
+
+    // mark complete
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === activeSessionId
+          ? {
+              ...s,
+              messages: s.messages.map((msg) =>
+                msg.id === assistantId
+                  ? { ...msg, status: "complete" }
+                  : msg
+              ),
+            }
+          : s
+      )
+    );
+
+  } catch (err: any) {
+    if (err.name !== "AbortError") {
+      console.error(err);
+    }
+  } finally {
+    setLoading(false);
+    setIsTyping(false);
+    abortControllerRef.current = null;
+  }
+};
 
   // ✅ Persist sessions
   useEffect(() => {
@@ -212,5 +337,6 @@ export function useChat() {
     handleSend,
     handleStop,
     clearChat,
+    handleRegenerate
   };
 }

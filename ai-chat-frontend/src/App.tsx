@@ -18,6 +18,7 @@ function App() {
     isTyping,
     handleSend,
     handleStop,
+    handleRegenerate
     
   } = useChat();
 
@@ -194,7 +195,7 @@ function App() {
         </div>
 
         <div ref={scrollRef} style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
-          <ChatWindow messages={messages} loading={loading} />
+          <ChatWindow messages={messages} loading={loading} handleRegenerate={handleRegenerate} />
         </div>
 
         <div style={{ position: "relative" }}>

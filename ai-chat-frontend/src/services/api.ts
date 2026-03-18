@@ -4,7 +4,8 @@ const BASE_URL = "http://localhost:8000";
 
 export async function sendMessageStream(
   payload: any,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
 ) {
   const res = await fetch("http://localhost:8000/chat", {
     method: "POST",
@@ -12,6 +13,7 @@ export async function sendMessageStream(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal,
   });
 
   if (!res.body) {

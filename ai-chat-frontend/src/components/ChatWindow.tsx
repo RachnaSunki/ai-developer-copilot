@@ -6,9 +6,10 @@ import MessageBubble from "./MessageBubble";
 interface Props {
   messages: Message[];
   loading: boolean;
+  handleRegenerate: () => void;
 }
 
-function ChatWindow({ messages, loading }: Props) {
+function ChatWindow({ messages, loading, handleRegenerate }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [showEmpty, setShowEmpty] = useState(messages.length === 0);
   const prevLengthRef = useRef(messages.length);
@@ -77,7 +78,12 @@ function ChatWindow({ messages, loading }: Props) {
         {messages.length > 0 && (
           <>
             {messages.map((msg, index) => (
-              <MessageBubble key={index} message={msg} />
+              <MessageBubble
+                key={index}
+                message={msg}
+                isLast={index === messages.length - 1}
+                onRegenerate={handleRegenerate}
+              />  
             ))}
 
             {/* Loading bubble */}
