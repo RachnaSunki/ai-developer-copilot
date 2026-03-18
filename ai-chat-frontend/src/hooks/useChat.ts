@@ -23,8 +23,6 @@ export function useChat() {
   );
 
   const messages = activeSession?.messages ?? [];
-  console.log("sessions:", sessions);
-console.log("activeSessionId:", activeSessionId);
 
   const createNewSession = () => {
     const newSession: Session = {
@@ -37,12 +35,6 @@ console.log("activeSessionId:", activeSessionId);
     setSessions((prev) => [newSession, ...prev]);
     setActiveSessionId(newSession.id);
   };
-
-  useEffect(() => {
-    if (sessions.length === 0) {
-      createNewSession();
-    }
-  }, []);
 
   const typeResponse = async (fullText: string) => {
     const messageId = crypto.randomUUID();
@@ -127,7 +119,7 @@ console.log("activeSessionId:", activeSessionId);
       status: "complete",
     };
 
-    const updatedHistory = [...messages, userMessage];
+    // const updatedHistory = [...messages, userMessage];
     setIsTyping(true); 
 
     // Only add user message
@@ -137,12 +129,14 @@ console.log("activeSessionId:", activeSessionId);
 
         const isFirstMessage = session.messages.length === 0;
 
+        const updatedMessages = [...session.messages, userMessage];
+
         return {
           ...session,
           title: isFirstMessage
-            ? input.slice(0, 40)   // trim to 40 chars
+            ? input.trim().slice(0, 40)
             : session.title,
-          messages: updatedHistory,
+          messages: updatedMessages,
         };
       })
     );
@@ -153,7 +147,7 @@ console.log("activeSessionId:", activeSessionId);
 
     try {
       const response = await sendMessage({
-        messages: updatedHistory,
+        messages: [...messages, userMessage],
       });
 
       if (!response.success) {
@@ -225,6 +219,23 @@ console.log("activeSessionId:", activeSessionId);
       );
     }
   }, [sessions, activeSessionId]);
+
+  useEffect(() => {
+    if (sessions.length > 0) {
+      const exists = sessions.some(s => s.id === activeSessionId);
+
+      if (!activeSessionId || !exists) {
+        setActiveSessionId(sessions[0].id);
+      }
+    }
+  }, [sessions, activeSessionId]);
+
+
+  useEffect(() => {
+    if (sessions.length === 0) {
+      createNewSession();
+    }
+  }, []);
 
 
   return {
