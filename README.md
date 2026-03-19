@@ -8,12 +8,13 @@ AI-powered backend service that assists frontend developers with:
 - Reviewing code snippets
 - Breaking down Jira tasks into actionable steps
 
-This project is being built as part of a transition into AI-focused backend engineering.
+This project is being built as part of a transition into **AI / GenAI Engineering**, focusing on real-time systems, LLM integration, and production-grade UX.
 
 ---
 
 ## 🛠 Tech Stack
 
+### Backend
 - Python 3.9+
 - FastAPI
 - Uvicorn
@@ -22,6 +23,12 @@ This project is being built as part of a transition into AI-focused backend engi
 - Pydantic
 - Logging (built-in Python logging module)
 
+### Frontend
+- React (Vite + TypeScript)
+- Custom Hooks Architecture (`useChat`)
+- React Markdown (GFM support)
+- Lucide Icons
+
 ---
 
 ## 🏗 Project Structure
@@ -29,27 +36,77 @@ This project is being built as part of a transition into AI-focused backend engi
 ```
 ai-dev-copilot/
 │
-├── main.py
-├── services/
-│   └── openai_service.py
-├── models/
-│   └── schemas.py
-├── requirements.txt
+├── backend/
+│ ├── main.py
+│ ├── services/
+│ │ └── openai_service.py
+│ ├── models/
+│ │ └── schemas.py
+│ ├── requirements.txt
+│ └── .env
+│
+├── frontend/
+│ ├── src/
+│ │ ├── components/
+│ │ ├── hooks/
+│ │ ├── services/
+│ │ └── types/
+│ └── package.json
+│
 ├── README.md
-├── .gitignore
-└── .env (not committed)
+└── .gitignore
 ```
 
 
 ## 🧠 Architecture
 
-Client → FastAPI → OpenAI Service → GPT-4o-mini → Response
+### High-Level Flow
+
+User Input (Frontend)
+↓
+useChat Hook (State Management)
+↓
+sendMessageStream (Fetch API + Streaming)
+↓
+FastAPI Endpoint (/chat)
+↓
+OpenAI API (Streaming Enabled)
+↓
+Chunked Response (tokens)
+↓
+Frontend Stream Reader (ReadableStream)
+↓
+UI Updates in Real-Time
 
 
-- `main.py` handles API routing.
-- `schemas.py` Request & response models (API contract).
-- `openai_service.py` handles LLM communication.
-- `.env` securely stores API keys.
+### Backend Flow
+
+Client Request → FastAPI Route → OpenAI Service → LLM → Stream Response
+
+- `/chat` endpoint receives full conversation
+- Calls OpenAI with `stream=True`
+- Yields chunks via `StreamingResponse`
+- Sends token-by-token response
+
+---
+
+### Frontend Flow
+
+User → handleSend → add messages → stream → update UI per chunk
+
+- Adds user message
+- Adds empty assistant placeholder (`status: streaming`)
+- Streams chunks → appends content
+- Marks message as `complete`
+
+---
+
+### State Design
+
+- Single source of truth: `sessions`
+- Each session contains:
+  - messages
+  - metadata (title, id)
 
 ---
 
@@ -57,9 +114,13 @@ Client → FastAPI → OpenAI Service → GPT-4o-mini → Response
 
 ### Request Model
 
+```json
 {
-  "message": "Explain React hooks"
+  "messages": [
+    { "role": "user", "content": "Explain React hooks" }
+  ]
 }
+```
 
 ### Response Model
 
@@ -69,8 +130,8 @@ Client → FastAPI → OpenAI Service → GPT-4o-mini → Response
   "error": null
 }
 
+### Validation Rules
 ```bash
-Validation Rules
 message must be a non-empty string
 Request validation errors → 422
 Response contract mismatch → 500
@@ -80,6 +141,7 @@ OpenAI failures handled gracefully
 
 ## ⚙️ Setup Instructions
 
+### Backend 
 
 ```bash
 1️⃣ Clone Repository
@@ -108,37 +170,81 @@ Open in browser:
 http://127.0.0.1:8000/docs
 ```
 
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 🛠 Development Phases
+
+### Phase 1 – Backend Foundation
+
+```bash
+FastAPI setup
+OpenAI integration
+Request/response models
+Error handling
+Logging
+API contract design
+```
+
+### Phase 2 – Frontend Chat UI
+
+```bash
+Chat UI built
+Markdown rendering
+Code blocks with copy
+Input UX improvements
+```
+
+### Phase 3 – Conversation System
+
+```bash
+Session-based architecture
+Multi-session support
+LocalStorage persistence
+Session switching
+Message model standardization
+```
+
+### Phase 4 – Advanced Features
+
+```bash
+Real-time streaming (backend + frontend)
+AbortController (stop generation)
+Regenerate response feature
+Auto-scroll improvements
+UX polish & spacing fixes
+```
+
 ## 🧠 Concepts Implemented
 
 ```bash
 REST API design
-Route decorators
-Type hints
+Streaming responses (LLM integration)
+AbortController (request cancellation)
+ReadableStream handling (frontend)
+State-driven UI architecture
+Session-based conversation management
+Custom React hooks (useChat)
 Pydantic validation (input & output)
-Response model enforcement
 Service layer separation
 Structured error handling
 Logging for observability
 Environment-based configuration
-Swagger (OpenAPI) auto documentation
+Frontend-backend contract design
 ```
-
-## ✅ Week 1 Status
-
-```bash
-Backend AI integration complete
-Clean modular architecture
-Request & response validation
-Error handling implemented
-Logging added
-Fully tested with edge cases
-```
-
 
 ## 📌 Future Improvements
 
 ```bash
-Build React (Vite) chat interface
-Connect frontend to backend
-Implement loading & error UI states
+Lightweight RAG (document-based Q&A)
+Backend conversation memory (server-side)
+Prompt engineering improvements
+Streaming via SSE/WebSockets
+Authentication & user sessions
+Deployment (Vercel + Render)
 ```

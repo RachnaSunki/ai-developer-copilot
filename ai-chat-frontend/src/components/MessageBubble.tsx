@@ -11,7 +11,14 @@ interface Props {
 }
 
 function MessageBubble({ message, isLast, onRegenerate }: Props) {
-  if (message.content === "__loading__") {
+  const isUser = message.role === "user";
+
+  // ✅ Streaming loading state
+  if (
+    message.role === "assistant" &&
+    message.status === "streaming" &&
+    !message.content
+  ) {
     return (
       <div
         style={{
@@ -22,16 +29,12 @@ function MessageBubble({ message, isLast, onRegenerate }: Props) {
       >
         <div
           style={{
-            backgroundColor: "#f3f4f6",
             padding: "10px 14px",
-            borderRadius: "16px",
-            display: "flex",
-            gap: "6px",
+            color: "#6b7280",
+            fontSize: "14px",
           }}
         >
-          <span className="dot" />
-          <span className="dot" />
-          <span className="dot" />
+          •••
         </div>
       </div>
     );
@@ -39,76 +42,89 @@ function MessageBubble({ message, isLast, onRegenerate }: Props) {
 
   if (!message.content) return null;
 
-  const isUser = message.role === "user";
-
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: isUser ? "flex-end" : "flex-start",
-        marginBottom: "12px",
-      }}
-    >
+    <div style={{ marginBottom: "14px" }}>
+      {/* Message */}
       <div
         style={{
-          backgroundColor: isUser ? "#2563eb" : "transparent",
-          color: isUser ? "white" : "#111827",
-          padding: isUser ? "8px 14px" : "0px",
-          borderRadius: "16px",
-          maxWidth: "75%",
-          position: "relative",
-          lineHeight: "1.6",
+          display: "flex",
+          justifyContent: isUser ? "flex-end" : "flex-start",
         }}
       >
-        <div className="markdown-content">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ inline, className, children, ...props }: any) {
-                const codeText = String(children).replace(/\n$/, "");
+        <div
+          style={{
+            backgroundColor: isUser ? "#2563eb" : "transparent",
+            color: isUser ? "white" : "#111827",
+            padding: isUser ? "8px 14px" : "0px",
+            borderRadius: "16px",
+            maxWidth: "75%",
+            lineHeight: "1.6",
+          }}
+        >
+          <div className="markdown-content">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ inline, className, children, ...props }: any) {
+                  const codeText = String(children).replace(/\n$/, "");
 
-                if (inline || !codeText.includes("\n")) {
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                }
+                  if (inline || !codeText.includes("\n")) {
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  }
 
-                return <CodeBlock codeText={codeText} />;
-              },
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
+                  return <CodeBlock codeText={codeText} />;
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
-      <div style={{ marginTop: "6px",position: "absolute"}}>
-        {message.role === "assistant" && isLast && message.status === "complete" && (
+
+      {/* ✅ Regenerate Button (Polished) */}
+      {message.role === "assistant" &&
+        isLast &&
+        message.status === "complete" && (
           <div
             style={{
               display: "flex",
-              justifyContent: "flex-end",
+              justifyContent: "flex-start",
+              marginTop: "6px",
+              marginLeft: "4px",
             }}
           >
             <button
               onClick={onRegenerate}
               style={{
-                background: "transparent",
-                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "32px",
+                height: "32px",
+                fontSize: "22px",
+                borderRadius: "8px",
+                backgroundColor: "#f3f4f6",
+                border: "1px solid #e5e7eb",
                 cursor: "pointer",
-                padding: "4px",
-                borderRadius: "6px",
+                transition: "all 0.2s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#e5e7eb";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#f3f4f6";
+              }}
             >
               ↻
             </button>
           </div>
         )}
     </div>
-  </div>
   );
 }
 

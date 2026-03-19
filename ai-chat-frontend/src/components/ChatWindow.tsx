@@ -15,24 +15,39 @@ function ChatWindow({ messages, loading, handleRegenerate }: Props) {
   const prevLengthRef = useRef(messages.length);
 
   useEffect(() => {
-    // 🔹 Empty state logic (unchanged behavior)
-    if (messages.length > 0) {
-      setTimeout(() => {
-        setShowEmpty(false);
-      }, 300);
-    } else {
-      setShowEmpty(true);
+  // Empty state logic (keep same)
+  if (messages.length > 0) {
+    setTimeout(() => setShowEmpty(false), 300);
+  } else {
+    setShowEmpty(true);
   }
-   // 🔹 Auto-scroll ONLY if new message added
-    if (messages.length > prevLengthRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
 
-    prevLengthRef.current = messages.length;
-  }, [messages]);
+  const lastMessage = messages[messages.length - 1];
+
+  // ✅ Scroll if:
+  // 1. New message added
+  // 2. OR streaming message updating
+  if (
+    messages.length > prevLengthRef.current ||
+    lastMessage?.status === "streaming"
+  ) {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  prevLengthRef.current = messages.length;
+}, [messages]);
+
+useEffect(() => {
+  if (messages.length > 0) {
+    // slight delay ensures DOM is ready
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    }, 0);
+  }
+}, []);
 
   return (
-  <div style={{ height: "100%", position: "relative" }}>
+  <div style={{height: "100%",position: "relative" }}>
     {/* Empty State */}
     {showEmpty && (
       <div
@@ -85,20 +100,9 @@ function ChatWindow({ messages, loading, handleRegenerate }: Props) {
                 onRegenerate={handleRegenerate}
               />  
             ))}
-
-            {/* Loading bubble */}
-            {loading && (
-            <MessageBubble
-              message={{
-                id: "loading",
-                role: "assistant",
-                content: "__loading__",
-                createdAt: Date.now(),
-                status: "streaming",
-              }}
-            />
-          )}
-
+            {messages.length > 0 && (
+              <div style={{ height: "100px" }} /> // ✅ spacing AFTER everything
+            )}
             <div ref={bottomRef} />
           </>
     )}

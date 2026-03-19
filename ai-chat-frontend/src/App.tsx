@@ -24,6 +24,8 @@ function App() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const lastMessage = messages[messages.length - 1];
+  const isStreaming = lastMessage?.status === "streaming";
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -194,12 +196,12 @@ function App() {
           </button>
         </div>
 
-        <div ref={scrollRef} style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
-          <ChatWindow messages={messages} loading={loading} handleRegenerate={handleRegenerate} />
-        </div>
+          <div ref={scrollRef} style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
+            <ChatWindow messages={messages} loading={loading} handleRegenerate={handleRegenerate} />
+          </div>
 
         <div style={{ position: "relative" }}>
-        {!isAtBottom && (
+        {!isAtBottom && !isStreaming && (
           <button
             onClick={() => {
               if (!scrollRef.current) return;
