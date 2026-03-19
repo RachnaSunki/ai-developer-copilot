@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from services.openai_service import get_ai_response
+from services.openai_service import SYSTEM_PROMPT, get_ai_response
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,7 +44,10 @@ async def chat(request: ChatRequest):
         try:
             response = await client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=request.messages,
+                messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    *[m.dict() for m in request.messages]
+                ],
                 stream=True,  # 🔥 enables streaming
             )
 

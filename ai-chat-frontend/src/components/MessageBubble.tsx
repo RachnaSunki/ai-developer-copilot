@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Message } from "../types/chat";
 import { Copy, Check } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 
 interface Props {
   message: Message;
@@ -12,6 +13,19 @@ interface Props {
 
 function MessageBubble({ message, isLast, onRegenerate }: Props) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
+
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content); 
+      setCopied(true);
+
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
+  };
 
   // ✅ Streaming loading state
   if (
@@ -88,40 +102,65 @@ function MessageBubble({ message, isLast, onRegenerate }: Props) {
 
       {/* ✅ Regenerate Button (Polished) */}
       {message.role === "assistant" &&
-        isLast &&
         message.status === "complete" && (
           <div
             style={{
               display: "flex",
               justifyContent: "flex-start",
-              marginTop: "6px",
-              marginLeft: "4px",
+              marginTop: "-8ypx",
+              marginLeft: "-8px",
             }}
           >
-            <button
+             {message.role === "assistant" && isLast &&
+              message.status === "complete" && 
+              <button
               onClick={onRegenerate}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: "32px",
-                height: "32px",
+                // width: "32px",
+                // height: "28px",
                 fontSize: "22px",
-                borderRadius: "8px",
-                backgroundColor: "#f3f4f6",
-                border: "1px solid #e5e7eb",
+                borderRadius: "30px",
+                backgroundColor: "transparent",
+                border: "none",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
               }}
-              onMouseEnter={(e) => {
+              onMouseOver={(e) => {
                 e.currentTarget.style.backgroundColor = "#e5e7eb";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#f3f4f6";
+                e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              ↻
+             <RotateCcw size={16} />
+            </button>}
+            {message.role === "assistant" &&
+              message.status === "complete" && 
+              <button
+                onClick={handleCopy}
+                style={{
+                  // position: "absolute",
+                  // top: "8px",
+                  // right: "8px",
+                  fontSize: "22px",
+                  border: "none",
+                  backgroundColor: 'transparent',
+                  color:  "#374151",
+                  // padding: "6px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s ease",
+                }}
+              >
+               {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
+        }
           </div>
         )}
     </div>
